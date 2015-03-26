@@ -1,161 +1,31 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "The template creates the basic network for lab #1 project.",
+  "Description": "The template creates the ELB for lab #1 project.",
+
+  "Parameters" : {
+
+    "VpcId" : {
+      "Type" : "String",
+      "Description" : "VpcId of the existing Virtual Private Cloud (VPC)"
+    },
+
+    "PublicSubnetA" : {
+      "Type" : "String",
+      "Description" : "private subnet A"
+    },
+
+    "PublicSubnetB" : {
+      "Type" : "String",
+      "Description" : "private subnet B"
+    }
+  },
 
   "Resources": {
-    "VPC": {
-      "Type": "AWS::EC2::VPC",
-      "Properties": {
-        "CidrBlock": "172.30.0.0/16",
-        "EnableDnsSupport": true,
-        "EnableDnsHostnames": true,
-        "Tags": [
-          {"Key": "Name","Value": "WordPressSite"},
-          {"Key": "Project","Value": "WordPress Site"}
-        ]
-      }
-    },
-    "IGW": {
-      "Type": "AWS::EC2::InternetGateway",
-      "Properties": {
-        "Tags": [
-          {"Key": "Name","Value": "IGW"},
-          {"Key": "Project","Value": "WordPress Site"}
-        ]
-      }
-    },
-    "VPCtoIGWConnection": {
-      "Type": "AWS::EC2::VPCGatewayAttachment",
-      "Properties": {
-        "InternetGatewayId": {"Ref": "IGW"},"VpcId": {"Ref": "VPC"}
-      }
-    },
-    "InternetRouteTable": {
-      "Type": "AWS::EC2::RouteTable",
-      "Properties": {
-        "VpcId": {"Ref": "VPC"},
-        "Tags": [
-          {"Key": "Name","Value": "Public Route Table"},
-          {"Key": "Project","Value": "WordPress Site"}
-        ]
-      }
-    },
-    "PrivateRouteTable": {
-      "Type": "AWS::EC2::RouteTable",
-      "Properties": {
-        "VpcId": {"Ref": "VPC"},
-        "Tags": [
-          {"Key": "Name","Value": "Private Route Table"},
-          {"Key": "Project","Value": "WordPress Site"}
-        ]
-      }
-    },
-    "InternetRoute": {
-      "Type": "AWS::EC2::Route",
-      "Properties": {
-        "DestinationCidrBlock": "0.0.0.0/0",
-        "GatewayId": {
-          "Ref": "IGW"
-        },
-        "RouteTableId": {
-          "Ref": "InternetRouteTable"
-        }
-      }
-    },
-    "PubNetA": {
-      "Type": "AWS::EC2::Subnet",
-      "Properties": {
-        "VpcId": {
-          "Ref": "VPC"
-        },
-        "CidrBlock": "172.30.0.0/24",
-        "AvailabilityZone": {
-          "Fn::Select": ["0",{"Fn::GetAZs": {"Ref": "AWS::Region"}}]
-        },
-        "Tags": [
-          {"Key": "Name","Value": "Public Network A"},
-          {"Key": "Project","Value": "WordPress Site"}
-        ]
-      }
-    },
-    "PubNetB": {
-      "Type": "AWS::EC2::Subnet",
-      "Properties": {
-        "VpcId": {
-          "Ref": "VPC"
-        },
-        "CidrBlock": "172.30.1.0/24",
-        "AvailabilityZone": {
-          "Fn::Select": ["1",{"Fn::GetAZs": {"Ref": "AWS::Region"}}]
-        },
-        "Tags": [
-          {"Key": "Name","Value": "Public Network A"},
-          {"Key": "Project","Value": "WordPress Site"}
-        ]
-      }
-    },
-    "PriNetA": {
-      "Type": "AWS::EC2::Subnet",
-      "Properties": {
-        "VpcId": {
-          "Ref": "VPC"
-        },
-        "CidrBlock": "172.30.10.0/24",
-        "AvailabilityZone": {
-          "Fn::Select": ["0",{"Fn::GetAZs": {"Ref": "AWS::Region"}}]
-        },
-        "Tags": [
-          {"Key": "Name","Value": "Private Network A"},
-          {"Key": "Project","Value": "WordPress Site"}
-        ]
-      }
-    },
-    "PriNetB": {
-      "Type": "AWS::EC2::Subnet",
-      "Properties": {
-        "VpcId": {
-          "Ref": "VPC"
-        },
-        "CidrBlock": "172.30.11.0/24",
-        "AvailabilityZone": {
-          "Fn::Select": ["1",{"Fn::GetAZs": {"Ref": "AWS::Region"}}]
-        },
-        "Tags": [
-          {"Key": "Name","Value": "Private Network A"},
-          {"Key": "Project","Value": "WordPress Site"}
-        ]
-      }
-    },
-    "PubSubAtoRT": {
-      "Type": "AWS::EC2::SubnetRouteTableAssociation",
-      "Properties": {
-        "RouteTableId": {"Ref": "InternetRouteTable"},"SubnetId": {"Ref": "PubNetA"}
-      }
-    },
-    "PubSubBtoRT": {
-      "Type": "AWS::EC2::SubnetRouteTableAssociation",
-      "Properties": {
-        "RouteTableId": {"Ref": "InternetRouteTable"},"SubnetId": {"Ref": "PubNetB"}
-      }
-    },
-    "PriSubAtoRT": {
-      "Type": "AWS::EC2::SubnetRouteTableAssociation",
-      "Properties": {
-        "RouteTableId": {"Ref": "PrivateRouteTable"},"SubnetId": {"Ref": "PriNetA"}
-      }
-    },
-    "PriSubBtoRT": {
-      "Type": "AWS::EC2::SubnetRouteTableAssociation",
-      "Properties": {
-        "RouteTableId": {"Ref": "PrivateRouteTable"},"SubnetId": {"Ref": "PriNetB"}
-      }
-    },
-
-    "WordPressElasticLoadBalancer" : {
+      "WordPressElasticLoadBalancer" : {
       "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
       "Properties" : {
         "SecurityGroups" : [{ "Ref" : "LoadBalancerSecurityGroup" }],
-        "Subnets" : [{ "Ref" : "PubNetA" },{ "Ref" : "PubNetB" }],
+        "Subnets" : [{ "Ref" : "PublicSubnetA" },{ "Ref" : "PublicSubnetB" }],
         "Listeners" : [{
           "LoadBalancerPort" : "80",
           "InstancePort" : "80",
@@ -175,7 +45,7 @@
       "Type" : "AWS::EC2::SecurityGroup",
       "Properties" : {
         "GroupDescription" : "Enable HTTP access on port 80",
-        "VpcId" : { "Ref" : "VPC" },
+        "VpcId" : { "Ref" : "VpcId" },
         "SecurityGroupIngress" : [{
           "IpProtocol" : "tcp",
           "FromPort" : "80",
@@ -189,29 +59,6 @@
           "CidrIp" : "0.0.0.0/0"
         }]
       }
-    }
-
-  },
-  "Outputs" : {
-    "VpcId" : {
-      "Value" : {"Ref": "VPC"},
-      "Description" : "VPC ID"
-    },
-    "PublicSubnetIds" : {
-      "Value" : {"Fn::Join" : [",", [{ "Ref" : "PubNetA" },{ "Ref" : "PubNetB" }]]},
-      "Description" : "Public Subnet Ids"
-    },
-    "PrivateSubnetIds" : {
-      "Value" : {"Fn::Join" : [",", [{ "Ref" : "PriNetA" },{ "Ref" : "PriNetB" }]]},
-      "Description" : "Private Subnet Ids"
-    },
-    "InternetRouteTableId" : {
-      "Value" : { "Ref" : "InternetRouteTable" },
-      "Description" : "Internet Route Table Id"
-    },
-    "PrivateRouteTableId" : {
-      "Value" : { "Ref" : "PrivateRouteTable" },
-      "Description" : "Private Route Table Id"
     }
   }
 }
