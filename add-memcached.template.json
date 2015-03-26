@@ -1,0 +1,60 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "Add ElastiCache Memcached to our VPC. **WARNING** This template creates an Amazon Ec2 Instance and an Amazon ElastiCache Cluster. You will be billed for the AWS resources used if you create a stack from this template.",
+  "Parameters" : {
+
+    "VpcId" : {
+      "Type" : "String",
+      "Description" : "VpcId of your existing Virtual Private Cloud (VPC)"
+    },
+
+    "CacheSubnets" : {
+      "Type" : "CommaDelimitedList",
+      "Description" : "The list of SubnetIds for the CacheCluster, you need at least 2 subnets in different availability zones. Enter the subnets separated by a comma in between."
+    }
+
+  },
+
+  "Resources" : {
+
+    "CacheSubnetGroup" : {
+      "Type" : "AWS::ElastiCache::SubnetGroup",
+      "Properties" : {
+        "Description" : "Subnets available for the ElastiCache Cluster",
+        "SubnetIds" : { "Ref" : "CacheSubnets" }
+      }
+    },
+
+    "CacheParameters" : {
+      "Type" : "AWS::ElastiCache::ParameterGroup",
+      "Properties" : {
+        "CacheParameterGroupFamily" : "memcached1.4",
+        "Description" : "Parameter group",
+        "Properties" : {
+          "cas_disabled" : "1"
+        }
+      }
+    },
+
+    "CacheSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "VpcId" : { "Ref" : "VpcId" },
+        "GroupDescription" : "Security group for ElastiCache Instances",
+        "SecurityGroupIngress" : [ { "IpProtocol" : "tcp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "172.30.0.0/16" } ]
+      }
+    },
+
+    "CacheCluster" : {
+      "Type": "AWS::ElastiCache::CacheCluster",
+      "Properties": {
+        "CacheSubnetGroupName" : { "Ref" : "CacheSubnetGroup" },
+        "CacheNodeType"        : "cache.t2.small",
+        "VpcSecurityGroupIds"  : [ { "Ref" : "CacheSecurityGroup" } ],
+        "Engine"               : "memcached",
+        "NumCacheNodes"        : "1"
+      }
+    }
+  }
+}

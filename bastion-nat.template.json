@@ -1,0 +1,110 @@
+{
+  "AWSTemplateFormatVersion" : "2010-09-09",
+
+  "Description" : "Builds a NAT host. **WARNING** This template creates Amazon EC2 instance(s). You will be billed for the AWS resources used if you create a stack from this template.",
+
+  "Parameters" : {
+      "KeyName" : {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
+      "Type" : "String",
+      "MinLength": "1",
+      "MaxLength": "64",
+      "AllowedPattern" : "[-_ a-zA-Z0-9]*",
+      "ConstraintDescription" : "can contain only alphanumeric characters, spaces, dashes and underscores."
+    },
+
+    "VpcId" : {
+      "Type" : "String",
+      "Description" : "VpcId of your existing Virtual Private Cloud (VPC)"
+    },
+
+    "PubASubnetId" : {
+      "Type" : "String",
+      "Description" : "SubnetId of an existing Public A facing subnet in your Virtual Private Cloud (VPC)"
+    },
+
+    "PubBSubnetId" : {
+      "Type" : "String",
+      "Description" : "SubnetId of an existing Public B facing subnet in your Virtual Private Cloud (VPC)"
+    },
+
+    "PrivateRouteId" : {
+      "Type" : "String",
+      "Description" : "Id of the Private Route Table in your Virtual Private Cloud (VPC)"
+    }
+
+  },
+
+  "Mappings" : {
+    "AWSNATAMI": {
+      "us-east-1": {"AMI": "ami-6e9e4b06"},
+      "us-west-2": {"AMI": "ami-8b6912bb"},
+      "us-west-1": {"AMI": "ami-1d2b2958"},
+      "eu-west-1": {"AMI": "ami-14913f63"},
+      "ap-southeast-1":{"AMI":"ami-6aa38238"},
+      "ap-southeast-2":{"AMI":"ami-893f53b3"}
+    },
+    "AWSAMI": {
+      "us-east-1": {"AMI": "ami-146e2a7c"},
+      "us-west-2": {"AMI": "ami-dfc39aef"},
+      "us-west-1": {"AMI": "ami-42908907"},
+      "eu-west-1": {"AMI": "ami-9d23aeea"},
+      "ap-southeast-1":{"AMI":"ami-96bb90c4"},
+      "ap-southeast-2":{"AMI":"ami-d50773ef"}
+    }
+  },
+
+  "Resources" : {
+
+    "NATIPAddress" : {
+      "Type" : "AWS::EC2::EIP",
+      "Properties" : {
+        "Domain" : "vpc",
+        "InstanceId" : { "Ref" : "NATDevice" }
+      }
+    },
+
+    "NATDevice" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "InstanceType" : "t2.micro",
+        "KeyName" : { "Ref" : "KeyName" },
+        "SubnetId" : { "Ref" : "SubnetAId" },
+        "SourceDestCheck" : "false",
+        "ImageId" : { "Fn::FindInMap" : [ "AWSNATAMI", { "Ref" : "AWS::Region" }, "AMI" ]},
+        "SecurityGroupIds" : [{ "Ref" : "NATSecurityGroup" }]
+      }
+    },
+
+    "NATSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable internal access to the NAT device",
+        "VpcId" : { "Ref" : "VpcId" },
+        "SecurityGroupIngress" : [
+          { "IpProtocol" : "tcp", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : "172.30.0.0/16" },
+          { "IpProtocol" : "udp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "172.30.0.0/16" } ,
+          { "IpProtocol" : "icmp", "FromPort" : "-1",  "ToPort" : "-1",  "CidrIp" : "172.30.0.0/16" }
+        ],
+        "SecurityGroupEgress" : [
+          { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : "0.0.0.0/0" },
+          { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "CidrIp" : "0.0.0.0/0" },
+          { "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : "0.0.0.0/0" },
+          { "IpProtocol" : "tcp", "FromPort" : "9418", "ToPort" : "9418", "CidrIp" : "0.0.0.0/0" },
+          { "IpProtocol" : "tcp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "172.30.0.0/16" },
+          { "IpProtocol" : "udp", "FromPort" : "123", "ToPort" : "123", "CidrIp" : "0.0.0.0/0" },
+          { "IpProtocol" : "icmp", "FromPort" : "-1",  "ToPort" : "-1",  "CidrIp" : "0.0.0.0/0" }
+        ]
+      }
+    },
+
+    "PrivateRoute" : {
+      "Type" : "AWS::EC2::Route",
+      "Properties" : {
+        "RouteTableId" : { "Ref" : "PrivateRouteId" },
+        "DestinationCidrBlock" : "0.0.0.0/0",
+        "InstanceId" : { "Ref" : "NATDevice" }
+      }
+    }
+  }
+}

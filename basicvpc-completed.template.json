@@ -1,0 +1,168 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The template creates the basic network for lab #1 project.",
+
+  "Resources": {
+    "VPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "172.30.0.0/16",
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true,
+        "Tags": [
+          {"Key": "Name","Value": "WordPressSiteVPC"}
+        ]
+      }
+    },
+    "IGW": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {"Key": "Name","Value": "WordPressSiteIGW"}
+        ]
+      }
+    },
+    "VPCtoIGWConnection": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "InternetGatewayId": {"Ref": "IGW"},"VpcId": {"Ref": "VPC"}
+      }
+    },
+    "InternetRouteTable": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {"Ref": "VPC"},
+        "Tags": [
+          {"Key": "Name","Value": "Public Route Table"}
+        ]
+      }
+    },
+    "PrivateRouteTable": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {"Ref": "VPC"},
+        "Tags": [
+          {"Key": "Name","Value": "Private Route Table"}
+        ]
+      }
+    },
+    "InternetRoute": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "IGW"
+        },
+        "RouteTableId": {
+          "Ref": "InternetRouteTable"
+        }
+      }
+    },
+    "PubNetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "CidrBlock": "172.30.0.0/24",
+        "AvailabilityZone": {
+          "Fn::Select": ["0",{"Fn::GetAZs": {"Ref": "AWS::Region"}}]
+        },
+        "Tags": [
+          {"Key": "Name","Value": "Public Network A"}
+        ]
+      }
+    },
+    "PubNetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "CidrBlock": "172.30.1.0/24",
+        "AvailabilityZone": {
+          "Fn::Select": ["1",{"Fn::GetAZs": {"Ref": "AWS::Region"}}]
+        },
+        "Tags": [
+          {"Key": "Name","Value": "Public Network B"}
+        ]
+      }
+    },
+    "PriNetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "CidrBlock": "172.30.10.0/24",
+        "AvailabilityZone": {
+          "Fn::Select": ["0",{"Fn::GetAZs": {"Ref": "AWS::Region"}}]
+        },
+        "Tags": [
+          {"Key": "Name","Value": "Private Network A"}
+        ]
+      }
+    },
+    "PriNetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "CidrBlock": "172.30.11.0/24",
+        "AvailabilityZone": {
+          "Fn::Select": ["1",{"Fn::GetAZs": {"Ref": "AWS::Region"}}]
+        },
+        "Tags": [
+          {"Key": "Name","Value": "Private Network B"}
+        ]
+      }
+    },
+    "PubSubAtoRT": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {"Ref": "InternetRouteTable"},"SubnetId": {"Ref": "PubNetA"}
+      }
+    },
+    "PubSubBtoRT": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {"Ref": "InternetRouteTable"},"SubnetId": {"Ref": "PubNetB"}
+      }
+    },
+    "PriSubAtoRT": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {"Ref": "PrivateRouteTable"},"SubnetId": {"Ref": "PriNetA"}
+      }
+    },
+    "PriSubBtoRT": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {"Ref": "PrivateRouteTable"},"SubnetId": {"Ref": "PriNetB"}
+      }
+    }
+  },
+  "Outputs" : {
+    "VpcId" : {
+      "Value" : {"Ref": "VPC"},
+      "Description" : "VPC ID"
+    },
+    "PublicSubnetIds" : {
+      "Value" : {"Fn::Join" : [",", [{ "Ref" : "PubNetA" },{ "Ref" : "PubNetB" }]]},
+      "Description" : "Public Subnet Ids"
+    },
+    "PrivateSubnetIds" : {
+      "Value" : {"Fn::Join" : [",", [{ "Ref" : "PriNetA" },{ "Ref" : "PriNetB" }]]},
+      "Description" : "Private Subnet Ids"
+    },
+    "InternetRouteTableId" : {
+      "Value" : { "Ref" : "InternetRouteTable" },
+      "Description" : "Internet Route Table Id"
+    },
+    "PrivateRouteTableId" : {
+      "Value" : { "Ref" : "PrivateRouteTable" },
+      "Description" : "Private Route Table Id"
+    }
+  }
+}
