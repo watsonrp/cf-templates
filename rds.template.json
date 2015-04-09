@@ -73,7 +73,6 @@
 
     "WordPressDB" : {
       "Type" : "AWS::RDS::DBInstance",
-      "DeletionPolicy" : "Snapshot",
       "Properties" : {
         "DBName" : { "Ref" : "DBName" },
         "AllocatedStorage" : "25",
