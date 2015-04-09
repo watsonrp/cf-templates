@@ -1,0 +1,64 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The template creates the ELB for lab #1 project.",
+
+  "Parameters" : {
+
+    "VpcId" : {
+      "Type" : "String",
+      "Description" : "VpcId of the existing Virtual Private Cloud (VPC)"
+    },
+
+    "PublicSubnetA" : {
+      "Type" : "String",
+      "Description" : "Private subnet A"
+    },
+
+    "PublicSubnetB" : {
+      "Type" : "String",
+      "Description" : "Private subnet B"
+    }
+  },
+
+  "Resources": {
+      "WordPressElasticLoadBalancer" : {
+      "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties" : {
+        "SecurityGroups" : [{ "Ref" : "LoadBalancerSecurityGroup" }],
+        "Subnets" : [{ "Ref" : "PublicSubnetA" },{ "Ref" : "PublicSubnetB" }],
+        "Listeners" : [{
+          "LoadBalancerPort" : "<enter a value>",
+          "InstancePort" : "<enter a value>",
+          "Protocol" : "<enter a value>"
+        }],
+        "HealthCheck" : {
+          "Target" : "<enter a value>",
+          "HealthyThreshold" : "<enter a value>",
+          "UnhealthyThreshold" : "<enter a value>",
+          "Interval" : "<enter a value>",
+          "Timeout" : "<enter a value>"
+        }
+      }
+    },
+
+    "LoadBalancerSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable HTTP access on port 80",
+        "VpcId" : <enter a value>,
+        "SecurityGroupIngress" : [{
+          "IpProtocol" : "<enter a value>",
+          "FromPort" : "<enter a value>",
+          "ToPort" : "<enter a value>",
+          "CidrIp" : "<enter a value>"
+        }],
+        "SecurityGroupEgress" : [{
+          "IpProtocol" : "tcp",
+          "FromPort" : "80",
+          "ToPort" : "80",
+          "CidrIp" : "0.0.0.0/0"
+        }]
+      }
+    }
+  }
+}
