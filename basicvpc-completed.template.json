@@ -10,7 +10,8 @@
         "EnableDnsSupport": true,
         "EnableDnsHostnames": true,
         "Tags": [
-          {"Key": "Name","Value": "WordPressSiteVPC"}
+          {"Key": "Name","Value": "WordPressSite"},
+          {"Key": "Project","Value": "WordPress Site"}
         ]
       }
     },
@@ -18,7 +19,8 @@
       "Type": "AWS::EC2::InternetGateway",
       "Properties": {
         "Tags": [
-          {"Key": "Name","Value": "WordPressSiteIGW"}
+          {"Key": "Name","Value": "IGW"},
+          {"Key": "Project","Value": "WordPress Site"}
         ]
       }
     },
@@ -33,7 +35,8 @@
       "Properties": {
         "VpcId": {"Ref": "VPC"},
         "Tags": [
-          {"Key": "Name","Value": "Public Route Table"}
+          {"Key": "Name","Value": "Public Route Table"},
+          {"Key": "Project","Value": "WordPress Site"}
         ]
       }
     },
@@ -42,7 +45,8 @@
       "Properties": {
         "VpcId": {"Ref": "VPC"},
         "Tags": [
-          {"Key": "Name","Value": "Private Route Table"}
+          {"Key": "Name","Value": "Private Route Table"},
+          {"Key": "Project","Value": "WordPress Site"}
         ]
       }
     },
@@ -69,7 +73,8 @@
           "Fn::Select": ["0",{"Fn::GetAZs": {"Ref": "AWS::Region"}}]
         },
         "Tags": [
-          {"Key": "Name","Value": "Public Network A"}
+          {"Key": "Name","Value": "Public Network A"},
+          {"Key": "Project","Value": "WordPress Site"}
         ]
       }
     },
@@ -84,7 +89,8 @@
           "Fn::Select": ["1",{"Fn::GetAZs": {"Ref": "AWS::Region"}}]
         },
         "Tags": [
-          {"Key": "Name","Value": "Public Network B"}
+          {"Key": "Name","Value": "Public Network B"},
+          {"Key": "Project","Value": "WordPress Site"}
         ]
       }
     },
@@ -99,7 +105,8 @@
           "Fn::Select": ["0",{"Fn::GetAZs": {"Ref": "AWS::Region"}}]
         },
         "Tags": [
-          {"Key": "Name","Value": "Private Network A"}
+          {"Key": "Name","Value": "Private Network A"},
+          {"Key": "Project","Value": "WordPress Site"}
         ]
       }
     },
@@ -114,7 +121,8 @@
           "Fn::Select": ["1",{"Fn::GetAZs": {"Ref": "AWS::Region"}}]
         },
         "Tags": [
-          {"Key": "Name","Value": "Private Network B"}
+          {"Key": "Name","Value": "Private Network B"},
+          {"Key": "Project","Value": "WordPress Site"}
         ]
       }
     },

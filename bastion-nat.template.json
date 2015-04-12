@@ -1,10 +1,10 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
 
-  "Description" : "Builds a NAT host. **WARNING** This template creates Amazon EC2 instance(s). You will be billed for the AWS resources used if you create a stack from this template.",
+  "Description" : "Builds a NAT Host & Bastion Host. **WARNING** This template creates Amazon EC2 instance(s). You will be billed for the AWS resources used if you create a stack from this template.",
 
   "Parameters" : {
-      "KeyName" : {
+    "KeyName" : {
       "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
       "Type" : "String",
       "MinLength": "1",
@@ -28,7 +28,7 @@
       "Description" : "SubnetId of an existing Public B facing subnet in your Virtual Private Cloud (VPC)"
     },
 
-    "PrivateRouteId" : {
+    "PrivateRouteTableId" : {
       "Type" : "String",
       "Description" : "Id of the Private Route Table in your Virtual Private Cloud (VPC)"
     }
@@ -68,12 +68,15 @@
       "Type" : "AWS::EC2::Instance",
       "Properties" : {
         "InstanceType" : "t2.micro",
-        "KeyName" : { "Ref" : "KeyName" },
         "SubnetId" : { "Ref" : "SubnetAId" },
         "SourceDestCheck" : "false",
         "ImageId" : { "Fn::FindInMap" : [ "AWSNATAMI", { "Ref" : "AWS::Region" }, "AMI" ]},
-        "SecurityGroupIds" : [{ "Ref" : "NATSecurityGroup" }]
-      }
+        "SecurityGroupIds" : [{ "Ref" : "NATSecurityGroup" }],
+        "Tags": [
+          {"Key": "Name","Value": "NAT Host"},
+          {"Key": "Project","Value": "WordPress Site"}
+        ]
+      }      
     },
 
     "NATSecurityGroup" : {
@@ -94,6 +97,10 @@
           { "IpProtocol" : "tcp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "172.30.0.0/16" },
           { "IpProtocol" : "udp", "FromPort" : "123", "ToPort" : "123", "CidrIp" : "0.0.0.0/0" },
           { "IpProtocol" : "icmp", "FromPort" : "-1",  "ToPort" : "-1",  "CidrIp" : "0.0.0.0/0" }
+        ],
+        "Tags": [
+          {"Key": "Name","Value": "NAT Host Security Group"},
+          {"Key": "Project","Value": "WordPress Site"}
         ]
       }
     },
@@ -101,7 +108,7 @@
     "PrivateRoute" : {
       "Type" : "AWS::EC2::Route",
       "Properties" : {
-        "RouteTableId" : { "Ref" : "PrivateRouteId" },
+        "RouteTableId" : { "Ref" : "PrivateRouteTableId" },
         "DestinationCidrBlock" : "0.0.0.0/0",
         "InstanceId" : { "Ref" : "NATDevice" }
       }
