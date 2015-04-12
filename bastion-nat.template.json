@@ -4,7 +4,7 @@
   "Description" : "Builds a NAT host. **WARNING** This template creates Amazon EC2 instance(s). You will be billed for the AWS resources used if you create a stack from this template.",
 
   "Parameters" : {
-      "KeyName" : {
+    "KeyName" : {
       "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the instances",
       "Type" : "String",
       "MinLength": "1",
@@ -73,7 +73,11 @@
         "SourceDestCheck" : "false",
         "ImageId" : { "Fn::FindInMap" : [ "AWSNATAMI", { "Ref" : "AWS::Region" }, "AMI" ]},
         "SecurityGroupIds" : [{ "Ref" : "NATSecurityGroup" }]
-      }
+      },
+      "Tags": [
+          {"Key": "Name","Value": "NAT Host"},
+          {"Key": "Project","Value": "WordPress Site"}
+        ]
     },
 
     "NATSecurityGroup" : {
@@ -94,6 +98,10 @@
           { "IpProtocol" : "tcp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : "172.30.0.0/16" },
           { "IpProtocol" : "udp", "FromPort" : "123", "ToPort" : "123", "CidrIp" : "0.0.0.0/0" },
           { "IpProtocol" : "icmp", "FromPort" : "-1",  "ToPort" : "-1",  "CidrIp" : "0.0.0.0/0" }
+        ],
+        "Tags": [
+          {"Key": "Name","Value": "NAT Host Security Group"},
+          {"Key": "Project","Value": "WordPress Site"}
         ]
       }
     },
