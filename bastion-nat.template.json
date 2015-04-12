@@ -28,7 +28,7 @@
       "Description" : "SubnetId of an existing Public B facing subnet in your Virtual Private Cloud (VPC)"
     },
 
-    "PrivateRouteId" : {
+    "PrivateRouteTableId" : {
       "Type" : "String",
       "Description" : "Id of the Private Route Table in your Virtual Private Cloud (VPC)"
     }
@@ -109,7 +109,7 @@
     "PrivateRoute" : {
       "Type" : "AWS::EC2::Route",
       "Properties" : {
-        "RouteTableId" : { "Ref" : "PrivateRouteId" },
+        "RouteTableId" : { "Ref" : "PrivateRouteTableId" },
         "DestinationCidrBlock" : "0.0.0.0/0",
         "InstanceId" : { "Ref" : "NATDevice" }
       }
