@@ -1,7 +1,7 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
 
-  "Description" : "Builds a NAT host & Bastion Host. **WARNING** This template creates Amazon EC2 instance(s). You will be billed for the AWS resources used if you create a stack from this template.",
+  "Description" : "Builds a NAT Host & Bastion Host. **WARNING** This template creates Amazon EC2 instance(s). You will be billed for the AWS resources used if you create a stack from this template.",
 
   "Parameters" : {
     "KeyName" : {
@@ -124,12 +124,12 @@
         ],
         "SecurityGroupEgress" : [
           { "IpProtocol" : "tcp", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : "0.0.0.0/0" }
-        ]
-      },
-      "Tags": [
+        ],
+        "Tags": [
           {"Key": "Name","Value": "Bastion Host Security Group"},
           {"Key": "Project","Value": "WordPress Site"}
         ]
+      }
     },
 
     "BastionHost" : {
