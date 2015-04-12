@@ -122,13 +122,18 @@
         "SecurityGroupIngress" : [
           { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : "0.0.0.0/0" }
         ],
-        "SecurityGroupEgress" : [
-          { "IpProtocol" : "tcp", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : "0.0.0.0/0" }
-        ],
         "Tags": [
           {"Key": "Name","Value": "Bastion Host Security Group"},
           {"Key": "Project","Value": "WordPress Site"}
         ]
+      }
+    },
+
+    "BastionIPAddress" : {
+      "Type" : "AWS::EC2::EIP",
+      "Properties" : {
+        "Domain" : "vpc",
+        "InstanceId" : { "Ref" : "BastionHost" }
       }
     },
 
