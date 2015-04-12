@@ -1,4 +1,5 @@
 #!/bin/bash
+# Script supplied by Sebastian Krueger
 
 DIR=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 
@@ -14,7 +15,7 @@ function getOutputsFromNetworkStack {
 				}')
 }
 
-KeyName=proarchtraining_sebastiankrueger
+KeyName=proarchtraining
 
 case $1 in 
 	create-network)
