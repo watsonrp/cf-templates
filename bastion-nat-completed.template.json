@@ -68,7 +68,6 @@
       "Type" : "AWS::EC2::Instance",
       "Properties" : {
         "InstanceType" : "t2.micro",
-        "KeyName" : { "Ref" : "KeyName" },
         "SubnetId" : { "Ref" : "PubASubnetId" },
         "SourceDestCheck" : "false",
         "ImageId" : { "Fn::FindInMap" : [ "AWSNATAMI", { "Ref" : "AWS::Region" }, "AMI" ]},

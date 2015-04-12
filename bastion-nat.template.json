@@ -68,16 +68,15 @@
       "Type" : "AWS::EC2::Instance",
       "Properties" : {
         "InstanceType" : "t2.micro",
-        "KeyName" : { "Ref" : "KeyName" },
         "SubnetId" : { "Ref" : "SubnetAId" },
         "SourceDestCheck" : "false",
         "ImageId" : { "Fn::FindInMap" : [ "AWSNATAMI", { "Ref" : "AWS::Region" }, "AMI" ]},
-        "SecurityGroupIds" : [{ "Ref" : "NATSecurityGroup" }]
-      },
-      "Tags": [
+        "SecurityGroupIds" : [{ "Ref" : "NATSecurityGroup" }],
+        "Tags": [
           {"Key": "Name","Value": "NAT Host"},
           {"Key": "Project","Value": "WordPress Site"}
         ]
+      }      
     },
 
     "NATSecurityGroup" : {
