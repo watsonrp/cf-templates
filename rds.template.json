@@ -1,7 +1,7 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
 
-  "Description" : "Create an RDS DBInstance in an existing Virtual Private Cloud (VPC). **WARNING** This template creates an Amazon Relational Database Service database instance. You will be billed for the AWS resources used if you create a stack from this template.",
+  "Description" : "The template creates the RDS instance for lab #1 project.",
 
   "Parameters" : {
 
@@ -10,15 +10,16 @@
       "Description" : "VpcId of the existing Virtual Private Cloud (VPC)"
     },
 
-    "PrivateSubnetA" : {
+    "PubASubnetId" : {
       "Type" : "String",
-      "Description" : "private subnet A"
+      "Description" : "SubnetId of an existing Public A facing subnet in your Virtual Private Cloud (VPC)"
     },
 
-    "PrivateSubnetB" : {
+    "PubBSubnetId" : {
       "Type" : "String",
-      "Description" : "private subnet B"
+      "Description" : "SubnetId of an existing Public B facing subnet in your Virtual Private Cloud (VPC)"
     },
+
     "DBName": {
       "Default": "WordPress",
       "Description" : "Database name",
@@ -52,29 +53,39 @@
 
   "Resources" : {
 
-    "MyDBSubnetGroup" : {
+    "DBSubnetGroup" : {
       "Type" : "AWS::RDS::DBSubnetGroup",
       "Properties" : {
         "DBSubnetGroupDescription" : "Subnets available for the RDS DB Instance",
-        "SubnetIds" : [{ "Ref" : "PrivateSubnetA" },{ "Ref" : "PrivateSubnetB" }]
+        "SubnetIds" : [{ "Ref" : "PubASubnetId" },{ "Ref" : "PubBSubnetId" }],
+        "Tags": [
+          {"Key": "Name","Value": "Wordpress DB Subnet Group"},
+          {"Key": "Project","Value": "WordPress Site"}
+        ]
       }
     },
 
-    "MyDBSecurityGroup" : {
-      "Type" : "AWS::RDS::DBSecurityGroup",
+    "DBEC2SecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
       "Properties" : {
-        "GroupDescription" : "Security group for RDS DB Instance",
-        "DBSecurityGroupIngress" : {
-            "CIDRIP" : "172.30.0.0/16"
-        },
-        "EC2VpcId" : { "Ref" : "VpcId" }
+        "GroupDescription": "Open MySQL for access from VPC",
+        "VpcId" : { "Ref" : "VpcId" },
+        "SecurityGroupIngress" : [
+          {"IpProtocol" : "tcp", "FromPort" : "3306", "ToPort" : "3306", "CidrIp": "172.30.0.0/16"}
+        ],
+        "Tags": [
+          {"Key": "Name","Value": "Wordpress DB Security Group"},
+          {"Key": "Project","Value": "WordPress Site"}
+        ]
       }
     },
 
     "WordPressDB" : {
       "Type" : "AWS::RDS::DBInstance",
+      "DeletionPolicy" : "Snapshot",
       "Properties" : {
         "DBName" : { "Ref" : "DBName" },
+        "DBInstanceIdentifier" : { "Ref" : "DBName" },
         "AllocatedStorage" : "25",
         "DBInstanceClass" : "db.t2.small",
         "Engine" : "MySQL",
@@ -82,8 +93,12 @@
         "MultiAZ" : "true",
         "MasterUsername" : { "Ref" : "DBUsername" } ,
         "MasterUserPassword" : { "Ref" : "DBPassword" },
-        "DBSubnetGroupName" : { "Ref" : "MyDBSubnetGroup" },
-        "DBSecurityGroups" : [ { "Ref" : "MyDBSecurityGroup" } ]
+        "DBSubnetGroupName" : { "Ref" : "DBSubnetGroup" },
+        "VPCSecurityGroups" : [ { "Fn::GetAtt": [ "DBEC2SecurityGroup", "GroupId" ] } ],
+        "Tags": [
+          {"Key": "Name","Value": "Wordpress MySQL RDS"},
+          {"Key": "Project","Value": "WordPress Site"}
+        ]
       }
     }
   },
