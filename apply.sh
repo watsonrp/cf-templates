@@ -17,6 +17,10 @@ function getOutputsFromNetworkStack {
 
 KeyName=proarchtraining
 
+DBName=wordpress
+DBUsername=admin
+DBPassword=wordpress
+
 case $1 in 
 	create-network)
 		aws cloudformation create-stack \
@@ -56,7 +60,61 @@ case $1 in
 				ParameterKey=PubBSubnetId,ParameterValue=${PubBSubnetId} \
 				ParameterKey=PrivateRouteTableId,ParameterValue=${PrivateRouteTableId}
 	;;
+	create-elb)
+
+		getOutputsFromNetworkStack
+
+		aws cloudformation create-stack \
+			--stack-name proarchtraining-lab1-elb \
+			--template-body "file://${DIR}/elb-seb.template.json" \
+			--parameters \
+				ParameterKey=VpcId,ParameterValue=${VpcId} \
+				ParameterKey=PubASubnetId,ParameterValue=${PubASubnetId} \
+				ParameterKey=PubBSubnetId,ParameterValue=${PubBSubnetId}
+	;;
+	update-elb)
+		
+		getOutputsFromNetworkStack
+
+		aws cloudformation update-stack \
+			--stack-name proarchtraining-lab1-elb \
+			--template-body "file://${DIR}/elb-seb.template.json" \
+			--parameters \
+				ParameterKey=VpcId,ParameterValue=${VpcId} \
+				ParameterKey=PubASubnetId,ParameterValue=${PubASubnetId} \
+				ParameterKey=PubBSubnetId,ParameterValue=${PubBSubnetId}
+	;;
+	create-rds)
+
+		getOutputsFromNetworkStack
+
+		aws cloudformation create-stack \
+			--stack-name proarchtraining-lab1-rds \
+			--template-body "file://${DIR}/rds-seb.template.json" \
+			--parameters \
+				ParameterKey=VpcId,ParameterValue=${VpcId} \
+				ParameterKey=PubASubnetId,ParameterValue=${PubASubnetId} \
+				ParameterKey=PubBSubnetId,ParameterValue=${PubBSubnetId} \
+				ParameterKey=DBName,ParameterValue=${DBName} \
+				ParameterKey=DBUsername,ParameterValue=${DBUsername} \
+				ParameterKey=DBPassword,ParameterValue=${DBPassword}
+	;;
+	update-rds)
+		
+		getOutputsFromNetworkStack
+
+		aws cloudformation update-stack \
+			--stack-name proarchtraining-lab1-rds \
+			--template-body "file://${DIR}/rds-seb.template.json" \
+			--parameters \
+				ParameterKey=VpcId,ParameterValue=${VpcId} \
+				ParameterKey=PubASubnetId,ParameterValue=${PubASubnetId} \
+				ParameterKey=PubBSubnetId,ParameterValue=${PubBSubnetId} \
+				ParameterKey=DBName,ParameterValue=${DBName} \
+				ParameterKey=DBUsername,ParameterValue=${DBUsername} \
+				ParameterKey=DBPassword,ParameterValue=${DBPassword}
+	;;
 	*)
-        echo $"Usage: $0 {[create|update]-[network|bastion-nat]}"
+        echo $"Usage: $0 {[create|update]-[network|bastion-nat|elb|rds]}"
         exit 1
 esac

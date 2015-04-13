@@ -9,14 +9,14 @@
       "Description" : "VpcId of the existing Virtual Private Cloud (VPC)"
     },
 
-    "PublicSubnetA" : {
+    "PubASubnetId" : {
       "Type" : "String",
-      "Description" : "Private subnet A"
+      "Description" : "SubnetId of an existing Public A facing subnet in your Virtual Private Cloud (VPC)"
     },
 
-    "PublicSubnetB" : {
+    "PubBSubnetId" : {
       "Type" : "String",
-      "Description" : "Private subnet B"
+      "Description" : "SubnetId of an existing Public B facing subnet in your Virtual Private Cloud (VPC)"
     }
   },
 
@@ -25,7 +25,7 @@
       "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
       "Properties" : {
         "SecurityGroups" : [{ "Ref" : "LoadBalancerSecurityGroup" }],
-        "Subnets" : [{ "Ref" : "PublicSubnetA" },{ "Ref" : "PublicSubnetB" }],
+        "Subnets" : [{ "Ref" : "PubASubnetId" },{ "Ref" : "PubBSubnetId" }],
         "Listeners" : [{
           "LoadBalancerPort" : "<enter a value>",
           "InstancePort" : "<enter a value>",
@@ -37,7 +37,11 @@
           "UnhealthyThreshold" : "<enter a value>",
           "Interval" : "<enter a value>",
           "Timeout" : "<enter a value>"
-        }
+        },
+        "Tags": [
+          {"Key": "Name","Value": "WordPress Elastic Load Balancer"},
+          {"Key": "Project","Value": "WordPress Site"}
+        ]
       }
     },
 
@@ -57,7 +61,11 @@
           "FromPort" : "80",
           "ToPort" : "80",
           "CidrIp" : "0.0.0.0/0"
-        }]
+        }],
+        "Tags": [
+          {"Key": "Name","Value": "WordPress Elastic Load Balancer Security Group"},
+          {"Key": "Project","Value": "WordPress Site"}
+        ]
       }
     }
   }

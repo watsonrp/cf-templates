@@ -1,7 +1,7 @@
 {
   "AWSTemplateFormatVersion" : "2010-09-09",
 
-  "Description" : "Builds a NAT Host & Bastion Host. **WARNING** This template creates Amazon EC2 instance(s). You will be billed for the AWS resources used if you create a stack from this template.",
+  "Description" : "The template creates the NAT and Bastion EC2 instances for lab #1 project.",
 
   "Parameters" : {
     "KeyName" : {
