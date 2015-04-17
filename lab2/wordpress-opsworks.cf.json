@@ -1,0 +1,729 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The template creates the environment for lab #2 exercises.  A new network (make sure you have enough VPCs) with Public/Private subnets, NAT, ELB, Opsworks Stack for Wordpress already configured and ready to go.",
+  "Parameters": {
+    "ServiceRole": {
+      "Default": "aws-opsworks-service-role",
+      "Description": "The OpsWorks service role",
+      "Type": "String",
+      "MinLength": "1",
+      "MaxLength": "64",
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
+      "ConstraintDescription": "must begin with a letter and contain only alphanumeric characters."
+    },
+    "InstanceRole": {
+      "Default": "aws-opsworks-ec2-role",
+      "Description": "The OpsWorks instance role",
+      "Type": "String",
+      "MinLength": "1",
+      "MaxLength": "64",
+      "AllowedPattern": "[a-zA-Z][a-zA-Z0-9-]*",
+      "ConstraintDescription": "must begin with a letter and contain only alphanumeric characters."
+    },
+    "DBPassword": {
+      "Default": "superpassword",
+      "NoEcho": "true",
+      "Description": "Database admim password",
+      "Type": "String",
+      "MinLength": "8",
+      "MaxLength": "41",
+      "ConstraintDescription": "Minimum of 8 characters"
+    },
+    "WordPressZipURL": {
+      "Default": "https://github.com/watsonrp/cf-templates/raw/master/lab2/wordpress-4.0-sql1.zip",
+      "Description": "The URL location of the Zip file for the WordPress site",
+      "Type": "String"
+    }
+  },
+  "Resources": {
+    "Stack": {
+      "Type": "AWS::OpsWorks::Stack",
+      "Properties": {
+        "Name": "WordPressStack",
+        "ServiceRoleArn": {
+          "Fn::Join": [
+            "", ["arn:aws:iam::", {"Ref": "AWS::AccountId"},
+                  ":role/", {"Ref": "ServiceRole"}]
+          ]
+        },
+        "DefaultInstanceProfileArn": {
+          "Fn::Join": [
+            "", ["arn:aws:iam::", {"Ref": "AWS::AccountId"},
+              ":instance-profile/", {"Ref": "InstanceRole"}]
+          ]
+        },
+        "ConfigurationManager":{
+          "Name":"Chef",
+          "Version":"11.10"
+        },
+        "UseCustomCookbooks": "true",
+        "CustomCookbooksSource": {
+          "Type": "git",
+          "Url": "https://github.com/watsonrp/mycookbooks.git"
+        },
+        "VpcId": {"Ref":"VPC"},
+        "DefaultSubnetId":{"Ref":"PubNetA"}
+      }
+    },
+    "PHPLayer": {
+      "Type": "AWS::OpsWorks::Layer",
+      "DependsOn": "WordPressApp",
+      "Properties": {
+        "StackId": {"Ref": "Stack"},
+        "Type": "php-app",
+	    "Shortname" : "php-app",
+        "EnableAutoHealing" : "true",
+        "AutoAssignElasticIps" : "false",
+        "AutoAssignPublicIps" : "true",
+        "Name": "MyPHPApp",
+        "CustomRecipes" : {
+          "Configure" : ["wordpress::default"]
+        }
+      }
+    },
+    "myAppInstance1": {
+      "Type": "AWS::OpsWorks::Instance",
+      "Properties": {
+        "StackId": {"Ref": "Stack"},
+        "LayerIds": [{"Ref": "PHPLayer"}],
+        "InstanceType": "m3.large",
+        "SubnetId" : {"Ref": "PriNetA"}
+      }
+    },
+    "myAppInstance2": {
+      "Type": "AWS::OpsWorks::Instance",
+      "Properties": {
+        "StackId": {"Ref": "Stack"},
+        "LayerIds": [{"Ref": "PHPLayer"}],
+        "InstanceType": "m3.large",
+        "SubnetId" : {"Ref": "PriNetB"}
+      }
+    },
+    "ELBAttachment" : {
+      "Type" : "AWS::OpsWorks::ElasticLoadBalancerAttachment",
+      "Properties" : {
+        "ElasticLoadBalancerName" : { "Ref" : "WordPressElasticLoadBalancer" },
+        "LayerId" : { "Ref" : "PHPLayer" }
+      }
+    },
+    "WordPressApp" : {
+      "Type" : "AWS::OpsWorks::App",
+      "Properties" : {
+        "StackId" : {"Ref":"Stack"},
+        "Type" : "php",
+        "Name" : "WordPress",
+        "AppSource" : {
+          "Type" : "archive",
+          "Url" : {"Ref" :"WordPressZipURL"},
+          "Revision" : "version1"
+        }
+      }
+    },
+    "DBLayer" : {
+      "Type" : "AWS::OpsWorks::Layer",
+      "DependsOn": "WordPressApp",
+      "Properties" : {
+        "StackId" : {"Ref":"Stack"},
+        "Type" : "db-master",
+	    "Shortname" : "dblayer",
+        "EnableAutoHealing" : "true",
+        "AutoAssignElasticIps" : "false",
+        "AutoAssignPublicIps" : "true",
+        "Name" : "MyMySQL",
+        "Attributes" : {
+          "MysqlRootPassword" : {"Ref":"DBPassword"},
+          "MysqlRootPasswordUbiquitous": "true"
+        },
+        "VolumeConfigurations":[{"MountPoint":"/vol/mysql","NumberOfDisks":1,"Size":10}]
+      }
+    },
+    "myDBInstance": {
+      "Type": "AWS::OpsWorks::Instance",
+      "Properties": {
+        "StackId": {"Ref": "Stack"},
+        "LayerIds": [{"Ref": "DBLayer"}],
+        "InstanceType": "m3.large"
+      }
+    },
+    "VPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "CIDRBLK",
+            "default",
+            "NET"
+          ]
+        },
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true,
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "WordPressSite"
+          },
+          {
+            "Key": "Project",
+            "Value": "WordPress Site"
+          }
+        ]
+      }
+    },
+    "IGW": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "IGW"
+          },
+          {
+            "Key": "Project",
+            "Value": "WordPress Site"
+          }
+        ]
+      }
+    },
+    "VPCtoIGWConnection": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "InternetGatewayId": {
+          "Ref": "IGW"
+        },
+        "VpcId": {
+          "Ref": "VPC"
+        }
+      }
+    },
+    "InternetRouteTable": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Public Route Table"
+          },
+          {
+            "Key": "Project",
+            "Value": "WordPress Site"
+          }
+        ]
+      }
+    },
+    "PrivateRouteTable": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Private Route Table"
+          },
+          {
+            "Key": "Project",
+            "Value": "WordPress Site"
+          }
+        ]
+      }
+    },
+    "InternetRoute": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "IGW"
+        },
+        "RouteTableId": {
+          "Ref": "InternetRouteTable"
+        }
+      }
+    },
+    "PubNetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "CIDRBLK",
+            "default",
+            "PUBA"
+          ]
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            "0",
+            {
+              "Fn::GetAZs": {
+                "Ref": "AWS::Region"
+              }
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Public Network A"
+          },
+          {
+            "Key": "Project",
+            "Value": "WordPress Site"
+          }
+        ]
+      }
+    },
+    "PubNetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "CIDRBLK",
+            "default",
+            "PUBB"
+          ]
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            "1",
+            {
+              "Fn::GetAZs": {
+                "Ref": "AWS::Region"
+              }
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Public Network B"
+          },
+          {
+            "Key": "Project",
+            "Value": "WordPress Site"
+          }
+        ]
+      }
+    },
+    "PriNetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "CIDRBLK",
+            "default",
+            "PRIA"
+          ]
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            "0",
+            {
+              "Fn::GetAZs": {
+                "Ref": "AWS::Region"
+              }
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Private Network A"
+          },
+          {
+            "Key": "Project",
+            "Value": "WordPress Site"
+          }
+        ]
+      }
+    },
+    "PriNetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "CIDRBLK",
+            "default",
+            "PRIB"
+          ]
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            "1",
+            {
+              "Fn::GetAZs": {
+                "Ref": "AWS::Region"
+              }
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Private Network B"
+          },
+          {
+            "Key": "Project",
+            "Value": "WordPress Site"
+          }
+        ]
+      }
+    },
+    "PubSubAtoRT": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "InternetRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PubNetA"
+        }
+      }
+    },
+    "PubSubBtoRT": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "InternetRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PubNetB"
+        }
+      }
+    },
+    "PriSubAtoRT": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PriNetA"
+        }
+      }
+    },
+    "PriSubBtoRT": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PriNetB"
+        }
+      }
+    },
+    "NATDeviceIPAddress": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc",
+        "InstanceId": {
+          "Ref": "NATDevice"
+        }
+      }
+    },
+    "NATDevice": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "InstanceType": "t2.micro",
+        "SubnetId": {
+          "Ref": "PubNetA"
+        },
+        "SourceDestCheck": "false",
+        "ImageId": {
+          "Fn::FindInMap": [
+            "AWSNATAMI",
+            {
+              "Ref": "AWS::Region"
+            },
+            "AMI"
+          ]
+        },
+        "SecurityGroupIds": [
+          {
+            "Ref": "NATSecurityGroup"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "NAT Host"
+          },
+          {
+            "Key": "Project",
+            "Value": "WordPress Site"
+          }
+        ]
+      }
+    },
+    "NATSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Enable internal access to the NAT device",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "0",
+            "ToPort": "65535",
+            "CidrIp": {
+              "Fn::FindInMap": [
+                "CIDRBLK",
+                "default",
+                "NET"
+              ]
+            }
+          },
+          {
+            "IpProtocol": "udp",
+            "FromPort": "0",
+            "ToPort": "65535",
+            "CidrIp": {
+              "Fn::FindInMap": [
+                "CIDRBLK",
+                "default",
+                "NET"
+              ]
+            }
+          },
+          {
+            "IpProtocol": "icmp",
+            "FromPort": "-1",
+            "ToPort": "-1",
+            "CidrIp": {
+              "Fn::FindInMap": [
+                "CIDRBLK",
+                "default",
+                "NET"
+              ]
+            }
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "443",
+            "ToPort": "443",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "9418",
+            "ToPort": "9418",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "0",
+            "ToPort": "65535",
+            "CidrIp": {
+              "Fn::FindInMap": [
+                "CIDRBLK",
+                "default",
+                "NET"
+              ]
+            }
+          },
+          {
+            "IpProtocol": "udp",
+            "FromPort": "123",
+            "ToPort": "123",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "icmp",
+            "FromPort": "-1",
+            "ToPort": "-1",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "NAT Host Security Group"
+          },
+          {
+            "Key": "Project",
+            "Value": "WordPress Site"
+          }
+        ]
+      }
+    },
+    "PrivateRoute": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateRouteTable"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "InstanceId": {
+          "Ref": "NATDevice"
+        }
+      }
+    },
+    "WordPressElasticLoadBalancer": {
+      "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties": {
+        "SecurityGroups": [
+          {
+            "Ref": "LoadBalancerSecurityGroup"
+          }
+        ],
+        "Subnets": [
+          {
+            "Ref": "PubNetA"
+          },
+          {
+            "Ref": "PubNetB"
+          }
+        ],
+        "Listeners": [
+          {
+            "LoadBalancerPort": "80",
+            "InstancePort": "80",
+            "Protocol": "HTTP"
+          }
+        ],
+        "HealthCheck": {
+          "Target": "HTTP:80/",
+          "HealthyThreshold": "3",
+          "UnhealthyThreshold": "3",
+          "Interval": "30",
+          "Timeout": "25"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "WordPress Elastic Load Balancer"
+          },
+          {
+            "Key": "Project",
+            "Value": "WordPress Site"
+          }
+        ]
+      }
+    },
+    "LoadBalancerSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Enable HTTP access on port 80",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "WordPress Elastic Load Balancer Security Group"
+          },
+          {
+            "Key": "Project",
+            "Value": "WordPress Site"
+          }
+        ]
+      }
+    }
+  },
+  "Mappings": {
+    "AWSNATAMI": {
+      "us-east-1": {
+        "AMI": "ami-6e9e4b06"
+      },
+      "us-west-2": {
+        "AMI": "ami-8b6912bb"
+      },
+      "us-west-1": {
+        "AMI": "ami-1d2b2958"
+      },
+      "eu-west-1": {
+        "AMI": "ami-14913f63"
+      },
+      "ap-southeast-1": {
+        "AMI": "ami-6aa38238"
+      },
+      "ap-southeast-2": {
+        "AMI": "ami-893f53b3"
+      }
+    },
+    "AWSAMI": {
+      "us-east-1": {
+        "AMI": "ami-146e2a7c"
+      },
+      "us-west-2": {
+        "AMI": "ami-dfc39aef"
+      },
+      "us-west-1": {
+        "AMI": "ami-42908907"
+      },
+      "eu-west-1": {
+        "AMI": "ami-9d23aeea"
+      },
+      "ap-southeast-1": {
+        "AMI": "ami-96bb90c4"
+      },
+      "ap-southeast-2": {
+        "AMI": "ami-d50773ef"
+      }
+    },
+    "CIDRBLK": {
+      "default": {
+        "NET": "172.30.0.0/16",
+        "PUBA": "172.30.0.0/24",
+        "PUBB": "172.30.1.0/24",
+        "PRIA": "172.30.10.0/24",
+        "PRIB": "172.30.11.0/24"
+      }
+    }
+  },
+  "Outputs": {
+    "LoadBalancer":{
+      "Value":{
+        "Fn::Join":["",["http://",{"Fn::GetAtt":["WordPressElasticLoadBalancer","DNSName"]},"/"]]
+      },
+      "Description": "WordPress Site URL"
+    }
+  }
+}
