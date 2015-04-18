@@ -30,7 +30,7 @@
       "ConstraintDescription": "Minimum of 8 characters"
     },
     "WordPressZipURL": {
-      "Default": "https://github.com/watsonrp/cf-templates/raw/master/lab2/wordpress-4.0-sql1.zip",
+      "Default": "https://s3-ap-southeast-2.amazonaws.com/procertprepfiles/wordpress-4.0.zip",
       "Description": "The URL location of the Zip file for the WordPress site",
       "Type": "String"
     }
