@@ -719,8 +719,14 @@
     }
   },
   "Outputs": {
-    "VpcId":{"Ref":"VPC"},
-    "PublicSubnetIds":"put them here",
+    "VpcId" : {
+      "Value" : {"Ref": "VPC"},
+      "Description" : "VPC ID"
+    },
+    "PrivateSubnetIds" : {
+      "Value" : {"Fn::Join" : [",", [{ "Ref" : "PriNetA" },{ "Ref" : "PriNetB" }]]},
+      "Description" : "Private Subnet Ids"
+    },
     "LoadBalancer":{
       "Value":{
         "Fn::Join":["",["http://",{"Fn::GetAtt":["WordPressElasticLoadBalancer","DNSName"]},"/"]]
