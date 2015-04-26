@@ -1,0 +1,350 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The template creates the 'on prem' network for lab 3.",
+
+  "Parameters" : {
+      "KeyName" : {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the Linux instances",
+      "Type" : "String",
+      "MinLength": "1",
+      "MaxLength": "64",
+      "AllowedPattern" : "[-_ a-zA-Z0-9]*",
+      "ConstraintDescription" : "can contain only alphanumeric characters, spaces, dashes and underscores."
+    }
+  },
+  "Resources": {
+    "VPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": {"Fn::FindInMap": ["CIDRBLK","default","NET"]},
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true,
+        "Tags": [
+          {"Key": "Name","Value": "OnPremVPC"}
+        ]
+      }
+    },
+    "IGW": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {"Key": "Name","Value": "OnPremIGW"}
+        ]
+      }
+    },
+    "VPCtoIGWConnection": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "InternetGatewayId": {"Ref": "IGW"},"VpcId": {"Ref": "VPC"}
+      }
+    },
+    "InternetRouteTable": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {"Ref": "VPC"},
+        "Tags": [
+          {"Key": "Name","Value": "Public Route Table"}
+        ]
+      }
+    },
+    "PrivateRouteTable": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {"Ref": "VPC"},
+        "Tags": [
+          {"Key": "Name","Value": "Private Route Table"}
+        ]
+      }
+    },
+    "InternetRoute": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "DestinationCidrBlock": {"Fn::FindInMap": ["CIDRBLK","default","ANY"]},
+        "GatewayId": {
+          "Ref": "IGW"
+        },
+        "RouteTableId": {
+          "Ref": "InternetRouteTable"
+        }
+      }
+    },
+    "PubNet": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "CidrBlock": {"Fn::FindInMap": ["CIDRBLK","default","PUB"]},
+        "Tags": [
+          {"Key": "Name","Value": "Public Network"}
+        ]
+      }
+    },
+    "PriNet": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "CidrBlock": {"Fn::FindInMap": ["CIDRBLK","default","PRI"]},
+        "Tags": [
+          {"Key": "Name","Value": "Private Network"}
+        ]
+      }
+    },
+    "PubSubtoRT": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {"Ref": "InternetRouteTable"},"SubnetId": {"Ref": "PubNet"}
+      }
+    },
+    "PriSubtoRT": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {"Ref": "PrivateRouteTable"},"SubnetId": {"Ref": "PriNet"}
+      }
+    },
+    "PrivateRoute" : {
+      "Type" : "AWS::EC2::Route",
+      "Properties" : {
+        "RouteTableId" : { "Ref" : "PrivateRouteTable" },
+        "DestinationCidrBlock" : {"Fn::FindInMap": ["CIDRBLK","default","ANY"]},
+        "InstanceId" : { "Ref" : "NATInstance" }
+      }
+    },
+    "OnPremDhcpOptions" : {
+     "Type" : "AWS::EC2::DHCPOptions",
+     "Properties" : {
+        "DomainName" : "company.lan",
+        "DomainNameServers" : [ {"Fn::FindInMap": ["IPADDR","default","AD"]} ],
+        "NtpServers" : [ {"Fn::FindInMap": ["IPADDR","default","AD"]} ]
+      }
+     },
+     "VPCDHCPOptionsAssociation" : {
+       "Type" : "AWS::EC2::VPCDHCPOptionsAssociation",
+       "Properties" : {
+         "VpcId" : {"Ref" : "VPC"},
+         "DhcpOptionsId" : {"Ref" : "OnPremDhcpOptions"}
+       }
+     },
+    "CRMInterface" : {
+      "Type" : "AWS::EC2::NetworkInterface",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PriNet" },
+        "Description" :"Default Interface",
+        "PrivateIpAddress" : {"Fn::FindInMap": ["IPADDR","default","CRM"]},
+        "GroupSet" : [ {"Ref" : "ADSecurityGroup"} ],
+        "SourceDestCheck" : "true"
+      }
+    },
+    "CRMSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable access to the CRM",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+          { "IpProtocol" : "-1", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","NET"]} }
+        ],
+        "SecurityGroupEgress" : [
+          { "IpProtocol" : "-1", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","ANY"]}}
+        ]
+      }
+    },
+    "CRMInstance" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "InstanceType" : "t2.medium",
+        "KeyName" : { "Ref" : "KeyName" },
+        "NetworkInterfaces" : [ {
+                 "NetworkInterfaceId" : {"Ref" : "CRMInterface"}, "DeviceIndex" : "0" } ],
+        "SourceDestCheck" : "true",
+        "ImageId" : { "Fn::FindInMap" : [ "IMAGESET", { "Ref" : "AWS::Region" }, "CRM" ]},
+        "Tags": [
+          { "Key": "Name","Value":"SuiteCRM Server"},
+          { "Key": "Lab","Value": "3"}
+        ]
+      }
+    },
+
+
+    "VPNInterface" : {
+      "Type" : "AWS::EC2::NetworkInterface",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PubNet" },
+        "Description" :"Default Interface",
+        "PrivateIpAddress" : {"Fn::FindInMap": ["IPADDR","default","VPN"]},
+        "GroupSet" : [ {"Ref" : "VPNSecurityGroup"} ],
+        "SourceDestCheck" : "false"
+      }
+    },
+    "VPNSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable access to the VPN Server",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+          { "IpProtocol" : "-1", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","NET"]} },
+          { "IpProtocol" : "tcp", "FromPort" : "3389",  "ToPort" : "3389",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","ANY"]} },
+          { "IpProtocol" : "udp", "FromPort" : "500",  "ToPort" : "500",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","NET"]} },
+          { "IpProtocol" : "50", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","ANY"]} },
+          { "IpProtocol" : "51", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","ANY"]} }
+        ],
+        "SecurityGroupEgress" : [
+          { "IpProtocol" : "-1", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","ANY"]}}
+        ]
+      }
+    },
+
+    "VPNInstance" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "InstanceType" : "t2.medium",
+        "KeyName" : { "Ref" : "KeyName" },
+        "NetworkInterfaces" : [ {
+                 "NetworkInterfaceId" : {"Ref" : "VPNInterface"}, "DeviceIndex" : "0" } ],
+        "SourceDestCheck" : "false",
+        "ImageId" : { "Fn::FindInMap" : [ "IMAGESET", { "Ref" : "AWS::Region" }, "VPN" ]},
+        "Tags": [
+          { "Key": "Name","Value":"VPN Server"},
+          { "Key": "Lab","Value": "3"}
+        ]
+      }
+    },
+    "VPNDeviceIPAddress": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc",
+        "InstanceId": {
+          "Ref": "VPNInstance"
+        }
+      }
+    },
+
+    "ADInterface" : {
+      "Type" : "AWS::EC2::NetworkInterface",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PriNet" },
+        "Description" :"Default Interface",
+        "PrivateIpAddress" : {"Fn::FindInMap": ["IPADDR","default","AD"]},
+        "GroupSet" : [ {"Ref" : "ADSecurityGroup"} ],
+        "SourceDestCheck" : "true"
+      }
+    },
+    "ADSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable access to the AD Server",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+          { "IpProtocol" : "-1", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","NET"]} }
+        ],
+        "SecurityGroupEgress" : [
+          { "IpProtocol" : "-1", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","ANY"]}}
+        ]
+      }
+    },
+
+    "ADInstance" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "InstanceType" : "t2.medium",
+        "KeyName" : { "Ref" : "KeyName" },
+        "NetworkInterfaces" : [ {
+                 "NetworkInterfaceId" : {"Ref" : "ADInterface"}, "DeviceIndex" : "0" } ],
+        "SourceDestCheck" : "true",
+        "ImageId" : { "Fn::FindInMap" : [ "IMAGESET", { "Ref" : "AWS::Region" }, "AD" ]},
+        "Tags": [
+          { "Key": "Name","Value":"Domain Controller"},
+          { "Key": "Lab","Value": "3"}
+        ]
+      }
+    },
+    "NATInterface" : {
+      "Type" : "AWS::EC2::NetworkInterface",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "PubNet" },
+        "Description" :"Default Interface",
+        "PrivateIpAddress" : {"Fn::FindInMap": ["IPADDR","default","NAT"]},
+        "GroupSet" : [ {"Ref" : "NATSecurityGroup"} ],
+        "SourceDestCheck" : "false"
+      }
+    },
+    "NATSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable internal access to the NAT device",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+          { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","ANY"]} },
+          { "IpProtocol" : "tcp", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","NET"]} },
+          { "IpProtocol" : "udp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","NET"]} } ,
+          { "IpProtocol" : "icmp", "FromPort" : "-1",  "ToPort" : "-1",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","NET"]} }
+        ],
+        "SecurityGroupEgress" : [
+          { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","ANY"]} },
+          { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","ANY"]} },
+          { "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","ANY"]}},
+          { "IpProtocol" : "tcp", "FromPort" : "9418", "ToPort" : "9418", "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","ANY"]} },
+          { "IpProtocol" : "tcp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","NET"]} },
+          { "IpProtocol" : "udp", "FromPort" : "123", "ToPort" : "123", "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","ANY"]}},
+          { "IpProtocol" : "icmp", "FromPort" : "-1",  "ToPort" : "-1",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","default","ANY"]} }
+        ]
+      }
+    },
+    "NATDeviceIPAddress": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc",
+        "InstanceId": {
+          "Ref": "NATInstance"
+        }
+      }
+    },
+    "NATInstance": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "InstanceType": "t2.micro",
+        "KeyName" : { "Ref" : "KeyName" },
+        "ImageId": {"Fn::FindInMap": ["IMAGESET",{"Ref": "AWS::Region"},"NAT"]},
+        "NetworkInterfaces" : [ {
+                 "NetworkInterfaceId" : {"Ref" : "NATInterface"}, "DeviceIndex" : "0" } ],
+        "Tags": [
+          { "Key": "Name","Value":"NAT Host"},
+          { "Key": "Lab","Value": "3"}
+        ]
+      }
+    }
+  },
+  "Outputs" : {
+    "VpcId" : {
+      "Value" : {"Ref": "VPC"},
+      "Description" : "VPC ID"
+    }
+  },
+  "Mappings" : {
+    "CIDRBLK": {
+      "default": {
+        "NET": "192.168.0.0/20",
+        "PUB": "192.168.0.0/24",
+        "PRI": "192.168.1.0/24",
+        "ANY":"0.0.0.0/0"
+      }
+    },
+    "IPADDR": {
+      "default": {
+        "AD": "192.168.1.10",
+        "NAT": "192.168.0.20",
+        "VPN": "192.168.0.10",
+        "CRM":"192.168.1.20"
+      }
+    },
+    "IMAGESET": {
+      "us-west-2": {
+        "VPN": "ami-bb63548b",
+        "NAT": "ami-3d64530d",
+        "CRM": "ami-7b6c5b4b",
+        "AD": "ami-25645315"
+      }
+    }
+  }
+}

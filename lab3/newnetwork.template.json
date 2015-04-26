@@ -1,0 +1,387 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The template creates the new network for lab 3.",
+
+  "Parameters" : {
+      "KeyName" : {
+      "Description" : "Name of an existing EC2 KeyPair to enable SSH access to the Linux instances",
+      "Type" : "String",
+      "MinLength": "1",
+      "MaxLength": "64",
+      "AllowedPattern" : "[-_ a-zA-Z0-9]*",
+      "ConstraintDescription" : "can contain only alphanumeric characters, spaces, dashes and underscores."
+    }
+  },
+  "Resources": {
+    "RESVPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": {"Fn::FindInMap": ["CIDRBLK","RES","NET"]},
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true,
+        "Tags": [
+          {"Key": "Name","Value": "Resource VPC"}
+        ]
+      }
+    },
+    "CRMVPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": {"Fn::FindInMap": ["CIDRBLK","CRM","NET"]},
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true,
+        "Tags": [
+          {"Key": "Name","Value": "CRM VPC"}
+        ]
+      }
+    },
+    "RESIGW": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {"Key": "Name","Value": "ResourceIGW"}
+        ]
+      }
+    },
+    "CRMIGW": {
+        "Type": "AWS::EC2::InternetGateway",
+        "Properties": {
+          "Tags": [
+            {"Key": "Name","Value": "CRMIGW"}
+          ]
+        }
+    },
+  "RESVPCtoIGWConnection": {
+    "Type": "AWS::EC2::VPCGatewayAttachment",
+    "Properties": {
+      "InternetGatewayId": {"Ref": "RESIGW"},"VpcId": {"Ref": "RESVPC"}
+    }
+  },
+  "CRMVPCtoIGWConnection": {
+    "Type": "AWS::EC2::VPCGatewayAttachment",
+    "Properties": {
+      "InternetGatewayId": {"Ref": "CRMIGW"},"VpcId": {"Ref": "CRMVPC"}
+    }
+  },
+  "RESInternetRouteTable": {
+    "Type": "AWS::EC2::RouteTable",
+    "Properties": {
+      "VpcId": {"Ref": "RESVPC"},
+      "Tags": [
+        {"Key": "Name","Value": "Public Route Table"}
+      ]
+    }
+  },
+  "CRMInternetRouteTable": {
+    "Type": "AWS::EC2::RouteTable",
+    "Properties": {
+      "VpcId": {"Ref": "CRMVPC"},
+      "Tags": [
+        {"Key": "Name","Value": "Public Route Table"}
+      ]
+    }
+  },
+  "RESPrivateRouteTable": {
+    "Type": "AWS::EC2::RouteTable",
+    "Properties": {
+      "VpcId": {"Ref": "RESVPC"},
+      "Tags": [
+        {"Key": "Name","Value": "Private Route Table"}
+      ]
+    }
+  },
+  "RESInternetRoute": {
+    "Type": "AWS::EC2::Route",
+    "Properties": {
+      "DestinationCidrBlock": {"Fn::FindInMap": ["CIDRBLK","RES","ANY"]},
+      "GatewayId": {
+        "Ref": "RESIGW"
+      },
+      "RouteTableId": {
+        "Ref": "RESInternetRouteTable"
+      }
+    }
+  },
+  "CRMInternetRoute": {
+    "Type": "AWS::EC2::Route",
+    "Properties": {
+      "DestinationCidrBlock": {"Fn::FindInMap": ["CIDRBLK","CRM","ANY"]},
+      "GatewayId": {
+        "Ref": "CRMIGW"
+      },
+      "RouteTableId": {
+        "Ref": "CRMInternetRouteTable"
+      }
+    }
+  },
+  "RESPubNet": {
+    "Type": "AWS::EC2::Subnet",
+    "Properties": {
+      "VpcId": {
+        "Ref": "RESVPC"
+      },
+      "CidrBlock": {"Fn::FindInMap": ["CIDRBLK","RES","PUB"]},
+      "Tags": [
+        {"Key": "Name","Value": "Public Network"}
+      ]
+    }
+  },
+  "CRMPubNet": {
+    "Type": "AWS::EC2::Subnet",
+    "Properties": {
+      "VpcId": {
+        "Ref": "CRMVPC"
+      },
+      "CidrBlock": {"Fn::FindInMap": ["CIDRBLK","CRM","PUB"]},
+      "Tags": [
+        {"Key": "Name","Value": "Public Network"}
+      ]
+    }
+  },
+  "RESPriNet": {
+    "Type": "AWS::EC2::Subnet",
+    "Properties": {
+      "VpcId": {
+        "Ref": "RESVPC"
+      },
+      "CidrBlock": {"Fn::FindInMap": ["CIDRBLK","RES","PRI"]},
+      "Tags": [
+        {"Key": "Name","Value": "Private Network"}
+      ]
+    }
+  },
+  "RESPubSubtoRT": {
+    "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    "Properties": {
+      "RouteTableId": {"Ref": "RESInternetRouteTable"},"SubnetId": {"Ref": "RESPubNet"}
+    }
+  },
+  "CRMPubSubtoRT": {
+    "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    "Properties": {
+      "RouteTableId": {"Ref": "CRMInternetRouteTable"},"SubnetId": {"Ref": "CRMPubNet"}
+    }
+  },
+  "RESPriSubtoRT": {
+    "Type": "AWS::EC2::SubnetRouteTableAssociation",
+    "Properties": {
+      "RouteTableId": {"Ref": "RESPrivateRouteTable"},"SubnetId": {"Ref": "RESPriNet"}
+    }
+  },
+  "RESPrivateRoute" : {
+    "Type" : "AWS::EC2::Route",
+    "Properties" : {
+      "RouteTableId" : { "Ref" : "RESPrivateRouteTable" },
+      "DestinationCidrBlock" : {"Fn::FindInMap": ["CIDRBLK","RES","ANY"]},
+      "InstanceId" : { "Ref" : "RESNATInstance" }
+    }
+  },
+  "RESOnPremDhcpOptions" : {
+   "Type" : "AWS::EC2::DHCPOptions",
+   "Properties" : {
+      "DomainName" : "company.lan",
+      "DomainNameServers" : [ {"Fn::FindInMap": ["IPADDR","RES","AD"]} ],
+      "NtpServers" : [ {"Fn::FindInMap": ["IPADDR","RES","AD"]} ]
+    }
+   },
+   "RESVPCDHCPOptionsAssociation" : {
+     "Type" : "AWS::EC2::VPCDHCPOptionsAssociation",
+     "Properties" : {
+       "VpcId" : {"Ref" : "RESVPC"},
+       "DhcpOptionsId" : {"Ref" : "RESOnPremDhcpOptions"}
+     }
+   },
+   "CRMOnPremDhcpOptions" : {
+    "Type" : "AWS::EC2::DHCPOptions",
+    "Properties" : {
+       "DomainName" : "company.lan",
+       "DomainNameServers" : [ {"Fn::FindInMap": ["IPADDR","CRM","AD"]} ],
+       "NtpServers" : [ {"Fn::FindInMap": ["IPADDR","CRM","AD"]} ]
+     }
+    },
+    "CRMVPCDHCPOptionsAssociation" : {
+      "Type" : "AWS::EC2::VPCDHCPOptionsAssociation",
+      "Properties" : {
+        "VpcId" : {"Ref" : "CRMVPC"},
+        "DhcpOptionsId" : {"Ref" : "CRMOnPremDhcpOptions"}
+      }
+    },
+
+    "RESNATInterface" : {
+      "Type" : "AWS::EC2::NetworkInterface",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "RESPubNet" },
+        "Description" :"Default Interface",
+        "PrivateIpAddress" : {"Fn::FindInMap": ["IPADDR","RES","NAT"]},
+        "GroupSet" : [ {"Ref" : "RESNATSecurityGroup"} ],
+        "SourceDestCheck" : "false"
+      }
+    },
+    "RESNATSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable internal access to the NAT device",
+        "VpcId" : { "Ref" : "RESVPC" },
+        "SecurityGroupIngress" : [
+          { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","RES","ANY"]} },
+          { "IpProtocol" : "tcp", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","RES","NET"]} },
+          { "IpProtocol" : "udp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","RES","NET"]} } ,
+          { "IpProtocol" : "icmp", "FromPort" : "-1",  "ToPort" : "-1",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","RES","NET"]} }
+        ],
+        "SecurityGroupEgress" : [
+          { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","RES","ANY"]} },
+          { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","RES","ANY"]} },
+          { "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","RES","ANY"]}},
+          { "IpProtocol" : "tcp", "FromPort" : "9418", "ToPort" : "9418", "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","RES","ANY"]} },
+          { "IpProtocol" : "tcp", "FromPort" : "0", "ToPort" : "65535", "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","RES","NET"]} },
+          { "IpProtocol" : "udp", "FromPort" : "123", "ToPort" : "123", "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","RES","ANY"]}},
+          { "IpProtocol" : "icmp", "FromPort" : "-1",  "ToPort" : "-1",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","RES","ANY"]} }
+        ]
+      }
+    },
+    "RESNATDeviceIPAddress": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc",
+        "InstanceId": {
+          "Ref": "RESNATInstance"
+        }
+      }
+    },
+    "RESNATInstance": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "InstanceType": "t2.micro",
+        "KeyName" : { "Ref" : "KeyName" },
+        "ImageId": {"Fn::FindInMap": ["IMAGESET",{"Ref": "AWS::Region"},"NAT"]},
+        "NetworkInterfaces" : [ {
+                 "NetworkInterfaceId" : {"Ref" : "RESNATInterface"}, "DeviceIndex" : "0" } ],
+        "Tags": [
+          { "Key": "Name","Value":"NAT Host (Resource VPC)"},
+          { "Key": "Lab","Value": "3"}
+        ]
+      }
+    },
+    "RESADInterface" : {
+      "Type" : "AWS::EC2::NetworkInterface",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "RESPriNet" },
+        "Description" :"Default Interface",
+        "PrivateIpAddress" : {"Fn::FindInMap": ["IPADDR","RES","AD"]},
+        "GroupSet" : [ {"Ref" : "RESADSecurityGroup"} ],
+        "SourceDestCheck" : "true"
+      }
+    },
+    "RESADSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable access to the AD Server",
+        "VpcId" : { "Ref" : "RESVPC" },
+        "SecurityGroupIngress" : [
+          { "IpProtocol" : "-1", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","RES","NET"]} }
+        ],
+        "SecurityGroupEgress" : [
+          { "IpProtocol" : "-1", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","RES","ANY"]}}
+        ]
+      }
+    },
+    "RESADInstance" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "InstanceType" : "t2.medium",
+        "KeyName" : { "Ref" : "KeyName" },
+        "NetworkInterfaces" : [ {
+                 "NetworkInterfaceId" : {"Ref" : "RESADInterface"}, "DeviceIndex" : "0" } ],
+        "SourceDestCheck" : "true",
+        "ImageId" : { "Fn::FindInMap" : [ "IMAGESET", { "Ref" : "AWS::Region" }, "WIN" ]},
+        "Tags": [
+          { "Key": "Name","Value":"Domain Controller (Resource VPC)"},
+          { "Key": "Lab","Value": "3"}
+        ]
+      }
+    },
+    "CRMInterface" : {
+      "Type" : "AWS::EC2::NetworkInterface",
+      "Properties" : {
+        "SubnetId" : { "Ref" : "CRMPubNet" },
+        "Description" :"Default Interface",
+        "PrivateIpAddress" : {"Fn::FindInMap": ["IPADDR","CRM","CRM"]},
+        "GroupSet" : [ {"Ref" : "CRMSecurityGroup"} ],
+        "SourceDestCheck" : "true"
+      }
+    },
+    "CRMSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable access to the CRM",
+        "VpcId" : { "Ref" : "CRMVPC" },
+        "SecurityGroupIngress" : [
+          { "IpProtocol" : "-1", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","CRM","NET"]} },
+          { "IpProtocol" : "tcp", "FromPort" : "22",  "ToPort" : "22",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","CRM","ANY"]} },
+          { "IpProtocol" : "tcp", "FromPort" : "80",  "ToPort" : "80",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","CRM","ANY"]} }
+        ],
+        "SecurityGroupEgress" : [
+          { "IpProtocol" : "-1", "FromPort" : "0",  "ToPort" : "65535",  "CidrIp" : {"Fn::FindInMap": ["CIDRBLK","CRM","ANY"]}}
+        ]
+      }
+    },
+    "CRMDeviceIPAddress": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc",
+        "InstanceId": {
+          "Ref": "CRMInstance"
+        }
+      }
+    },
+    "CRMInstance" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "InstanceType" : "t2.medium",
+        "KeyName" : { "Ref" : "KeyName" },
+        "NetworkInterfaces" : [ {
+                 "NetworkInterfaceId" : {"Ref" : "CRMInterface"}, "DeviceIndex" : "0" } ],
+        "SourceDestCheck" : "true",
+        "ImageId" : { "Fn::FindInMap" : [ "IMAGESET", { "Ref" : "AWS::Region" }, "CRM" ]},
+        "Tags": [
+          { "Key": "Name","Value":"SuiteCRM Server (CRM VPC)"},
+          { "Key": "Lab","Value": "3"}
+        ]
+      }
+    }
+  },
+
+  "Mappings" : {
+    "CIDRBLK": {
+      "RES": {
+        "NET": "10.10.0.0/16",
+        "PUB": "10.10.0.0/24",
+        "PRI": "10.10.1.0/24",
+        "ANY":"0.0.0.0/0"
+      },
+      "CRM": {
+        "NET": "10.20.0.0/16",
+        "PUB": "10.20.0.0/24",
+        "ANY":"0.0.0.0/0"
+      }
+    },
+    "IPADDR": {
+      "RES": {
+        "AD": "10.10.1.10",
+        "NAT": "10.10.0.20",
+        "JMP": "10.10.0.10"
+      },
+      "CRM": {
+        "CRM": "10.20.0.10",
+        "AD": "10.10.1.10"
+      }
+    },
+    "IMAGESET": {
+      "ap-southeast-2": {
+        "WIN": "ami-eb166bd1",
+        "NAT": "ami-893f53b3",
+        "CRM": "ami-ab186491"
+      }
+    }
+  }
+}
