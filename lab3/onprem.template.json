@@ -1,6 +1,6 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
-  "Description": "The template creates the 'on prem' network for lab 3.",
+  "Description": "The template creates the 'on prem' network for lab 3.  To be used only in us-west-2, as it uses only AMIs there.",
 
   "Parameters" : {
       "KeyName" : {
