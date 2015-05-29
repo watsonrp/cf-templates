@@ -1,0 +1,623 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The template creates the environment for lab 1 exercises.  A new network (make sure you have enough VPCs) with Public/Private subnets, NAT, ELB.",
+  "Resources": {
+    "VPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "CIDRBLK",
+            "default",
+            "NET"
+          ]
+        },
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true,
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "LAB 1 VPC"
+          }
+        ]
+      }
+    },
+    "IGW": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Lab 1 IGW"
+          }
+        ]
+      }
+    },
+    "VPCtoIGWConnection": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "InternetGatewayId": {
+          "Ref": "IGW"
+        },
+        "VpcId": {
+          "Ref": "VPC"
+        }
+      }
+    },
+    "InternetRouteTable": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Lab 1 Public Route Table"
+          }
+        ]
+      }
+    },
+    "PrivateRouteTable": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Lab 1 Private Route Table"
+          }
+        ]
+      }
+    },
+    "InternetRoute": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "IGW"
+        },
+        "RouteTableId": {
+          "Ref": "InternetRouteTable"
+        }
+      }
+    },
+    "PubNetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "CIDRBLK",
+            "default",
+            "PUBA"
+          ]
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            "0",
+            {
+              "Fn::GetAZs": {
+                "Ref": "AWS::Region"
+              }
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Lab 1 Public Network A"
+          }
+        ]
+      }
+    },
+    "PubNetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "CIDRBLK",
+            "default",
+            "PUBB"
+          ]
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            "1",
+            {
+              "Fn::GetAZs": {
+                "Ref": "AWS::Region"
+              }
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Lab 1 Public Network B"
+          }
+        ]
+      }
+    },
+    "PriNetA": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "CIDRBLK",
+            "default",
+            "PRIA"
+          ]
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            "0",
+            {
+              "Fn::GetAZs": {
+                "Ref": "AWS::Region"
+              }
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Lab 1 Private Network A"
+          }
+        ]
+      }
+    },
+    "PriNetB": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "CidrBlock": {
+          "Fn::FindInMap": [
+            "CIDRBLK",
+            "default",
+            "PRIB"
+          ]
+        },
+        "AvailabilityZone": {
+          "Fn::Select": [
+            "1",
+            {
+              "Fn::GetAZs": {
+                "Ref": "AWS::Region"
+              }
+            }
+          ]
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Lab 1 Private Network B"
+          }
+        ]
+      }
+    },
+    "PubSubAtoRT": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "InternetRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PubNetA"
+        }
+      }
+    },
+    "PubSubBtoRT": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "InternetRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PubNetB"
+        }
+      }
+    },
+    "PriSubAtoRT": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PriNetA"
+        }
+      }
+    },
+    "PriSubBtoRT": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateRouteTable"
+        },
+        "SubnetId": {
+          "Ref": "PriNetB"
+        }
+      }
+    },
+    "NATDeviceIPAddress": {
+      "Type": "AWS::EC2::EIP",
+      "Properties": {
+        "Domain": "vpc",
+        "InstanceId": {
+          "Ref": "NATDevice"
+        }
+      }
+    },
+    "NATDevice": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "InstanceType": "t2.micro",
+        "SubnetId": {
+          "Ref": "PubNetA"
+        },
+        "SourceDestCheck": "false",
+        "ImageId": {
+          "Fn::FindInMap": [
+            "AWSNATAMI",
+            {
+              "Ref": "AWS::Region"
+            },
+            "AMI"
+          ]
+        },
+        "SecurityGroupIds": [
+          {
+            "Ref": "NATSecurityGroup"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Lab 1 NAT Host"
+          }
+        ]
+      }
+    },
+    "NATSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Enable internal access to the NAT device",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "0",
+            "ToPort": "65535",
+            "CidrIp": {
+              "Fn::FindInMap": [
+                "CIDRBLK",
+                "default",
+                "NET"
+              ]
+            }
+          },
+          {
+            "IpProtocol": "udp",
+            "FromPort": "0",
+            "ToPort": "65535",
+            "CidrIp": {
+              "Fn::FindInMap": [
+                "CIDRBLK",
+                "default",
+                "NET"
+              ]
+            }
+          },
+          {
+            "IpProtocol": "icmp",
+            "FromPort": "-1",
+            "ToPort": "-1",
+            "CidrIp": {
+              "Fn::FindInMap": [
+                "CIDRBLK",
+                "default",
+                "NET"
+              ]
+            }
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "443",
+            "ToPort": "443",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "9418",
+            "ToPort": "9418",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "0",
+            "ToPort": "65535",
+            "CidrIp": {
+              "Fn::FindInMap": [
+                "CIDRBLK",
+                "default",
+                "NET"
+              ]
+            }
+          },
+          {
+            "IpProtocol": "udp",
+            "FromPort": "123",
+            "ToPort": "123",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "icmp",
+            "FromPort": "-1",
+            "ToPort": "-1",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Lab 1 NAT Host Security Group"
+          }
+        ]
+      }
+    },
+    "PrivateRoute": {
+      "Type": "AWS::EC2::Route",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "PrivateRouteTable"
+        },
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "InstanceId": {
+          "Ref": "NATDevice"
+        }
+      }
+    },
+    "MainElasticLoadBalancer": {
+      "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties": {
+        "SecurityGroups": [
+          {
+            "Ref": "LoadBalancerSecurityGroup"
+          }
+        ],
+        "Subnets": [
+          {
+            "Ref": "PubNetA"
+          },
+          {
+            "Ref": "PubNetB"
+          }
+        ],
+        "Listeners": [
+          {
+            "LoadBalancerPort": "80",
+            "InstancePort": "80",
+            "Protocol": "HTTP"
+          }
+        ],
+        "HealthCheck": {
+          "Target": "TCP:80",
+          "HealthyThreshold": "3",
+          "UnhealthyThreshold": "3",
+          "Interval": "30",
+          "Timeout": "25"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Lab 1 Main Elastic Load Balancer"
+          }
+        ]
+      }
+    },
+    "LoadBalancerSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Enable HTTP access on port 80",
+        "VpcId": {
+          "Ref": "VPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "SecurityGroupEgress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Lab 1 Main Elastic Load Balancer Security Group"
+          }
+        ]
+      }
+    },
+    "FailOverElasticLoadBalancer": {
+      "Type": "AWS::ElasticLoadBalancing::LoadBalancer",
+      "Properties": {
+        "SecurityGroups": [
+          {
+            "Ref": "LoadBalancerSecurityGroup"
+          }
+        ],
+        "Subnets": [
+          {
+            "Ref": "PubNetA"
+          },
+          {
+            "Ref": "PubNetB"
+          }
+        ],
+        "Listeners": [
+          {
+            "LoadBalancerPort": "80",
+            "InstancePort": "80",
+            "Protocol": "HTTP"
+          }
+        ],
+        "HealthCheck": {
+          "Target": "TCP:80",
+          "HealthyThreshold": "3",
+          "UnhealthyThreshold": "3",
+          "Interval": "30",
+          "Timeout": "25"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "Lab 1 Failover Elastic Load Balancer"
+          }
+        ]
+      }
+    },
+    "DBSubnetGroup" : {
+      "Type" : "AWS::RDS::DBSubnetGroup",
+      "Properties" : {
+        "DBSubnetGroupDescription" : "Subnets available for the RDS DB Instance",
+        "SubnetIds" : [{ "Ref" : "PriNetA" },{ "Ref" : "PriNetB" }],
+        "Tags": [
+          {"Key": "Name","Value": "Lab 1 WordPress DB Subnet Group"}
+        ]
+      }
+    },
+
+    "DBEC2SecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription": "Open MySQL for access from VPC",
+        "VpcId" : { "Ref" : "VPC" },
+        "SecurityGroupIngress" : [
+          {"IpProtocol" : "tcp", "FromPort" : "3306", "ToPort" : "3306", "CidrIp": "172.30.0.0/16"}
+        ],
+        "Tags": [
+          {"Key": "Name","Value": "Lab1 WordPress DB Security Group"}
+        ]
+      }
+    },
+
+    "WordPressDB" : {
+      "Type" : "AWS::RDS::DBInstance",
+      "DeletionPolicy" : "Snapshot",
+      "Properties" : {
+        "DBName" : "wordpress",
+        "DBInstanceIdentifier" : "lab1wordpressv2",
+        "AllocatedStorage" : "25",
+        "DBInstanceClass" : "db.t2.small",
+        "Engine" : "MySQL",
+        "EngineVersion" : "5.6",
+        "MultiAZ" : "true",
+        "MasterUsername" : "master",
+        "MasterUserPassword" : "P4ssw0rd",
+        "DBSubnetGroupName" : { "Ref" : "DBSubnetGroup" },
+        "VPCSecurityGroups" : [ { "Fn::GetAtt": [ "DBEC2SecurityGroup", "GroupId" ] } ],
+        "Tags": [
+          {"Key": "Name","Value": "Lab 1 MySQL RDS"}
+        ]
+      }
+    }
+  },
+  "Mappings": {
+    "AWSNATAMI": {
+      "us-east-1": {
+        "AMI": "ami-6e9e4b06"
+      },
+      "us-west-2": {
+        "AMI": "ami-8b6912bb"
+      },
+      "us-west-1": {
+        "AMI": "ami-1d2b2958"
+      },
+      "eu-west-1": {
+        "AMI": "ami-14913f63"
+      },
+      "ap-southeast-1": {
+        "AMI": "ami-6aa38238"
+      },
+      "ap-southeast-2": {
+        "AMI": "ami-893f53b3"
+      }
+    },
+    "AWSAMI": {
+      "us-east-1": {
+        "AMI": "ami-146e2a7c"
+      },
+      "us-west-2": {
+        "AMI": "ami-dfc39aef"
+      },
+      "us-west-1": {
+        "AMI": "ami-42908907"
+      },
+      "eu-west-1": {
+        "AMI": "ami-9d23aeea"
+      },
+      "ap-southeast-1": {
+        "AMI": "ami-96bb90c4"
+      },
+      "ap-southeast-2": {
+        "AMI": "ami-d50773ef"
+      }
+    },
+    "CIDRBLK": {
+      "default": {
+        "NET": "172.30.0.0/16",
+        "PUBA": "172.30.0.0/24",
+        "PUBB": "172.30.1.0/24",
+        "PRIA": "172.30.10.0/24",
+        "PRIB": "172.30.11.0/24"
+      }
+    }
+  },
+  "Outputs": {
+    "VpcId" : {
+      "Value" : {"Ref": "VPC"},
+      "Description" : "Lab 1 VPC Id"
+    },
+    "PrivateSubnetIds" : {
+      "Value" : {"Fn::Join" : [",", [{ "Ref" : "PriNetA" },{ "Ref" : "PriNetB" }]]},
+      "Description" : "Private Subnet Ids"
+    }
+  }
+}
