@@ -10,14 +10,14 @@
       "Description" : "VpcId of the existing Virtual Private Cloud (VPC)"
     },
 
-    "PubASubnetId" : {
+    "PriASubnetId" : {
       "Type" : "String",
-      "Description" : "SubnetId of an existing Public A facing subnet in your Virtual Private Cloud (VPC)"
+      "Description" : "SubnetId of an existing Private A facing subnet in your Virtual Private Cloud (VPC)"
     },
 
-    "PubBSubnetId" : {
+    "PriBSubnetId" : {
       "Type" : "String",
-      "Description" : "SubnetId of an existing Public B facing subnet in your Virtual Private Cloud (VPC)"
+      "Description" : "SubnetId of an existing Private B facing subnet in your Virtual Private Cloud (VPC)"
     },
 
     "DBName": {
@@ -57,7 +57,7 @@
       "Type" : "AWS::RDS::DBSubnetGroup",
       "Properties" : {
         "DBSubnetGroupDescription" : "Subnets available for the RDS DB Instance",
-        "SubnetIds" : [{ "Ref" : "PubASubnetId" },{ "Ref" : "PubBSubnetId" }],
+        "SubnetIds" : [{ "Ref" : "PriASubnetId" },{ "Ref" : "PriBSubnetId" }],
         "Tags": [
           {"Key": "Name","Value": "Wordpress DB Subnet Group"},
           {"Key": "Project","Value": "WordPress Site"}

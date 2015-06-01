@@ -394,6 +394,39 @@
         ]
       }
     },
+    "BastionSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "Enable access to the bastion",
+        "VpcId" : { "Ref" : "VpcId" },
+        "SecurityGroupIngress" : [
+          { "IpProtocol" : "tcp", "FromPort" : "3389",  "ToPort" : "3389",  "CidrIp" : "0.0.0.0/0" }
+        ],
+        "Tags": [
+          {"Key": "Name","Value": "Bastion Host Security Group"}
+        ]
+      }
+    },
+    "BastionIPAddress" : {
+      "Type" : "AWS::EC2::EIP",
+      "Properties" : {
+        "Domain" : "vpc",
+        "InstanceId" : { "Ref" : "BastionHost" }
+      }
+    },
+    "BastionHost" : {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "InstanceType" : "t2.medium",
+        "KeyName" : { "Ref" : "KeyName" },
+        "SubnetId" : { "Ref" : "PubBSubnetId" },
+        "ImageId" : { "Fn::FindInMap" : [ "AWSAMI", { "Ref" : "AWS::Region" }, "AMI" ]},
+        "SecurityGroupIds" : [{ "Ref" : "BastionSecurityGroup" }],
+        "Tags": [
+          {"Key": "Name","Value": "Bastion Host"}
+        ]
+      }
+    },
     "PrivateRoute": {
       "Type": "AWS::EC2::Route",
       "Properties": {
@@ -543,12 +576,12 @@
       "DeletionPolicy" : "Snapshot",
       "Properties" : {
         "DBName" : "wordpress",
-        "DBInstanceIdentifier" : "lab1wordpressv2",
+        "DBInstanceIdentifier" : "lab1wordpress",
         "AllocatedStorage" : "25",
         "DBInstanceClass" : "db.t2.small",
         "Engine" : "MySQL",
         "EngineVersion" : "5.6",
-        "MultiAZ" : "true",
+        "MultiAZ" : "false",
         "MasterUsername" : "master",
         "MasterUserPassword" : "P4ssw0rd",
         "DBSubnetGroupName" : { "Ref" : "DBSubnetGroup" },
@@ -582,22 +615,22 @@
     },
     "AWSAMI": {
       "us-east-1": {
-        "AMI": "ami-146e2a7c"
-      },
-      "us-west-2": {
-        "AMI": "ami-dfc39aef"
+        "AMI": "ami-c01102a8"
       },
       "us-west-1": {
-        "AMI": "ami-42908907"
+        "AMI": "ami-830ee0c7"
+      },
+      "us-west-2": {
+        "AMI": "ami-c30a39f3"
       },
       "eu-west-1": {
-        "AMI": "ami-9d23aeea"
+        "AMI": "ami-1387ed64"
       },
       "ap-southeast-1": {
-        "AMI": "ami-96bb90c4"
+        "AMI": "ami-062e1054"
       },
       "ap-southeast-2": {
-        "AMI": "ami-d50773ef"
+        "AMI": "ami-6be19e51"
       }
     },
     "CIDRBLK": {
