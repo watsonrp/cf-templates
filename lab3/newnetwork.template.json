@@ -378,7 +378,7 @@
     },
     "IMAGESET": {
       "ap-southeast-2": {
-        "WIN": "ami-eb166bd1",
+        "WIN": "ami-f9760dc3",
         "NAT": "ami-893f53b3",
         "CRM": "ami-ab186491"
       }
